@@ -3,9 +3,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-from sklearn import datasets
+from sklearn.model_selection import GridSearchCV, cross_validate
 from sklearn.model_selection import train_test_split
-from sklearn.decomposition import PCA
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -14,7 +13,6 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import confusion_matrix
-import time
 import os
 os.environ['OMP_NUM_THREADS']='1'
 
@@ -33,7 +31,6 @@ class App:
         
     def run(self):
         self.get_dataset()
-        self.add_parameter_ui()
         self.generate()
         self.plot_mb()
         self.plot_corr()
@@ -75,34 +72,54 @@ class App:
         
         
 
-    def add_parameter_ui(self):
-        if self.classifier_name == 'SVM':
-            C = st.sidebar.slider('C', 0.01, 15.0)
-            self.params['C'] = C
-        elif self.classifier_name == 'KNN':
-            K = st.sidebar.slider('K', 1, 15)
-            self.params['K'] = K
-        elif self.classifier_name == "Gaussian Naive Bayes":
-           pass    
-        else:
-            max_depth = st.sidebar.slider('max_depth', 2, 15)
-            self.params['max_depth'] = max_depth
-            n_estimators = st.sidebar.slider('n_estimators', 1, 100)
-            self.params['n_estimators'] = n_estimators
-
-
-
-
     def get_classifier(self):
         if self.classifier_name == 'SVM':
-            self.clf  = SVC(C=self.params['C'])
+            model = SVC() 
+            svm_params = {'C': [0.1, 1, 10, 50, 100, 1000],  
+                        'gamma': [1, 0.1, 0.01, 0.001, 0.0001], 
+                        'kernel': ['rbf']} 
+            self.clf = GridSearchCV(model,
+                           svm_params,
+                           cv=5,
+                           n_jobs=-1,
+                           verbose=1)
+            
+            
         elif self.classifier_name == 'KNN':
-            self.clf  = KNeighborsClassifier(n_neighbors=self.params['K'])
+            model  = KNeighborsClassifier()
+            knn_params = {"n_neighbors": range(2, 50)}
+            self.clf = GridSearchCV(model,
+                           knn_params,
+                           cv=5,
+                           n_jobs=-1,
+                           verbose=1)
+            
+            
         elif self.classifier_name == "Gaussian Naive Bayes":
-            self.clf = GaussianNB()
+            model = GaussianNB()
+            naive_bayes_params = {
+                'var_smoothing': [1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12, 1e-13, 1e-14, 1e-15]
+            }
+            self.clf = GridSearchCV(model,
+                           naive_bayes_params,
+                           cv=5,
+                           n_jobs=-1,
+                           verbose=1)
+            
+            
         else:
-            self.clf  = RandomForestClassifier(n_estimators=self.params['n_estimators'],
-                max_depth=self.params['max_depth'], random_state=42)
+            model  = RandomForestClassifier()
+            rf_params = {"max_depth": [8, 15, None],
+             "max_features": [5, 7, "auto"],
+             "min_samples_split": [15, 20],
+             "n_estimators": [20, 300]}
+            self.clf = GridSearchCV(model,
+                           rf_params,
+                           cv=5,
+                           n_jobs=-1,
+                           verbose=1)
+            
+        return self.clf
             
          
             
@@ -142,14 +159,14 @@ class App:
         fig.legend()
         st.pyplot(fig)
         
-    
+   
+       
         
 
     def generate(self):
         
         self.get_classifier()
         
-        #### CLASSIFICATION ####
           
         scaler = MinMaxScaler() # max value = 1 , min value = 0 
         self.X = scaler.fit_transform(self.X)
@@ -162,6 +179,9 @@ class App:
         
         self.clf.fit(X_train, y_train)
         
+        #best_params = self.clf.best_params_
+        #st.write("En iyi parametreler:", best_params)
+    
         y_pred = self.clf.predict(X_test)
 
         acc = accuracy_score(y_test, y_pred)
