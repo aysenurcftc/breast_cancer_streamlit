@@ -15,6 +15,6 @@ pip install -r requirements.txt
 ## Usage/Examples
 
 ```bash
-streamlit run app.py
+streamlit run main.py
 ```
 
